@@ -1,4 +1,4 @@
-const ORM = require('../data/general-orm-1.0.0');
+const ORM = require('../data/general-orm-1.1.0');
 const sha1 = require('sha1');
 const annonceModel = require('../model/annonce');
 const regionModel = require('../model/region');
@@ -89,7 +89,7 @@ class JocscraperTemplate {
                 const NUM_PAGES = await this.getNumPages(page, ADVERTS_PER_PAGE);
                 console.log(NUM_PAGES+" PAGES");
 
-                for (let pageNumber = 0; pageNumber < NUM_PAGES; pageNumber += this.PAGE_LIMIT) {
+                for (let pageNumber = 1; pageNumber < NUM_PAGES; pageNumber += this.PAGE_LIMIT) {
                     await this.scrapeRegion(page, browser, REGION_PAGE_SELECTOR, pageNumber, pageNumber
                         + this.PAGE_LIMIT);
                 }
@@ -129,7 +129,7 @@ class JocscraperTemplate {
             };
 
             for (let index = fromPage; index < toPage; index++) {
-                console.log('BEGINNING SCRAPING ON PAGE: ' + (index + 1));
+                console.log('BEGINNING SCRAPING ON PAGE: ' + (index));
                 const PAGE_SELECTOR = REGION_PAGE_SELECTOR.concat(`?page=${index}`);
                 console.log("PAGE_SELECTOR: "+PAGE_SELECTOR);
 
@@ -306,12 +306,6 @@ class JocscraperTemplate {
 
                 ORM.FindChecksum(sha1Checksum)
                     .then((returnedChecksum) => {
-                        if (returnedChecksum) { // advertisement exists
-                            this.existingTotalCounter++;
-                            resolveCounter++;
-                            settlePromise(index);
-                        }
-                        else {
                             this.PAGE_POOL.reservePage(titleUrlList.PAGE_URLS[index])
                                 .then((page) => {
                                     // Go to linked site and scrape it:
@@ -331,7 +325,7 @@ class JocscraperTemplate {
                                     settlePromise(index);
                                     throw new Error("Error at scrapePageList() → " + error);
                                 });
-                        }
+
                     })
             }
         })
@@ -371,7 +365,7 @@ class JocscraperTemplate {
                 });
 
             // Insert or update annonce to database:
-            await this.insertAnnonce(title, bodyHTML, url)
+            await this.insertAnnonce(title, bodyHTML, url, this.TARGET_WEBSITE)
                 .catch((error) => {
                     throw new Error("insertAnnonce(" + url + "): " + error)
                 });
@@ -438,22 +432,30 @@ class JocscraperTemplate {
      * @param {String}              annonceTitle            title of the advertisement
      * @param {String}              rawHTMLText             raw advertisement html
      * @param {String}              annonceURL              url pointing to the advertisement
+     * @param {String}              jobSite                 flag to denote which jobsite the advert is found on.
      *
      * @returns {Promise<any>}
      */
-    insertAnnonce(annonceTitle, rawHTMLText, annonceURL) {
+    async insertAnnonce(annonceTitle, rawHTMLText, annonceURL, jobSite) {
         return new Promise((resolve, reject) => {
             let sha1Checksum = sha1(`${annonceURL}`);
 
             ORM.FindChecksum(sha1Checksum)
                 .then((result) => {
-                    if (!result)
-                        return this.createAnnonceModel(annonceTitle, rawHTMLText, currentRegionID, sha1Checksum, annonceURL)
+                    if (!result) {
+                        return this.createAnnonceModel(annonceTitle, rawHTMLText, currentRegionID, sha1Checksum,
+                            annonceURL, jobSite)
                             .catch((error) => {
                                 throw new Error("Already in database!" + error);
                             });
-                    this.existingTotalCounter++;
-                    resolve();
+                    } else {
+                        this.existingTotalCounter++;
+                        ORM.UpdateAnnonce(ORM.CreateTimestampNow(), sha1Checksum) // Måske resolve her
+                            .catch((error) => {
+                                throw new Error("Something went wrong when updating Annonce!" + error);
+                            });
+                        resolve(result);
+                    }
                 })
                 .then((newAnnonceModel) => {
                     if (newAnnonceModel)
@@ -485,21 +487,18 @@ class JocscraperTemplate {
      * @param {int}                 regionId                region of advertisement
      * @param {String}              checksum                url converted to SHA-1 checksum
      * @param {String}              url                     url of advertisement
+     * @param {String}              jobSite                 name of jobsite, in which the advert was found
      *
      * @returns {Promise<any>}
      */
-    async createAnnonceModel(title, body, regionId = undefined, checksum, url) {
+    async createAnnonceModel(title, body, regionId = undefined, checksum, url, jobSite) {
         return new Promise((resolve, reject) => {
             try {
                 // Format Timestamp:
-                let newDate = new Date();
-                let timestampFormat = newDate.getFullYear() + '-' + (newDate.getMonth() < 9 ? '0' : '') +
-                    (newDate.getMonth() + 1) + '-' + (newDate.getDate() < 9 ? '0' : '') + (newDate.getDate()) +
-                    ' ' + newDate.getHours() + ':' + newDate.getMinutes() + ':' + newDate.getSeconds();
-
+                let initialTimestamp = ORM.CreateTimestampNow();
 
                 // Model data into Annonce class:
-                resolve(new annonceModel(title, body, regionId, timestampFormat, checksum.toString(), url));
+                resolve(new annonceModel(title, body, regionId, initialTimestamp, undefined, checksum.toString(), url, jobSite));
             } catch (error) {
                 reject("Error at createAnnonceModel() → " + error);
             }

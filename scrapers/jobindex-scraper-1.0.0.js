@@ -1,4 +1,4 @@
-let ScraperInterface = require('./jobscraper-interface-1.0.0');
+let ScraperInterface = require('./jobscraper-interface-1.1.0');
 
 
 const TARGET_WEBSITE = 'https://www.jobindex.dk';

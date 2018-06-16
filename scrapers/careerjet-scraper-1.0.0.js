@@ -1,4 +1,4 @@
-let ScraperInterface = require('./jobscraper-interface-1.0.0');
+let ScraperInterface = require('./jobscraper-interface-1.1.0');
 
 
 const TARGET_WEBSITE = 'https://www.careerjet.dk';
@@ -101,7 +101,7 @@ class CareerjetScraper extends ScraperInterface {
                 });
 
             // Insert or update annonce to database:
-            await this.insertAnnonce(title, bodyHTML, formattedUrl)
+            await this.insertAnnonce(title, bodyHTML, formattedUrl, TARGET_WEBSITE)
                 .catch((error) => {
                     throw new Error("insertAnnonce(" + formattedUrl + "): " + error)
                 });

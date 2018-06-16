@@ -1,34 +1,66 @@
 let puppeteer = require('puppeteer');
+const ORM = require('./data/general-orm-1.1.0');
 let jobindexClass = require('./scrapers/jobindex-scraper-1.0.0');
 let careerjetClass = require('./scrapers/careerjet-scraper-1.0.0');
+let filter = require('./filter/annonce-filter-0.0.1');
 
 async function main() {
+
+    let executionStartTimestamp = ORM.CreateTimestampNow();
 
     const browser = await puppeteer.launch({
         headless: true
     });
     const page = await browser.newPage();
+
     await page.setExtraHTTPHeaders({ // Handling of correct reading of danish alphabet
         'Accept-Language': 'da-DK,da;q=0.9,en-US;q=0.8,en;q=0.7'
     });
 
-    if (!process.env.SCRAPER === "all" || process.env.SCRAPER === "jobindex") {
-
+    if (process.env.SCRAPER === "all" || process.env.SCRAPER === "jobindex") {
         let scraper = new jobindexClass();
-        await run(scraper, browser, page);
+        await run(scraper, browser, page)
+            .catch((error) => {
+              throw new Error(error);
+           });
+
+        // Search for obsolete annonces
+        if(process.env.RUN_REFRESH === "true") {
+           await filter.RunFilter("jobindex", executionStartTimestamp)
+               .catch((error) => {
+                   throw new Error("Error at main → filter.RunFilter(): " + error);
+               });
+        }
         //Print result
         scraper.printDatabaseResult();
     }
+
     if (process.env.SCRAPER === "all" || process.env.SCRAPER === "careerjet") {
 
         let scraper = new careerjetClass();
-        await run(scraper, browser, page);
+        await run(scraper, browser, page)
+            .catch((error) => {
+            throw new Error(error);
+        });
+
+
+        // Search for obsolete annonces
+        if(process.env.RUN_REFRESH === "true") {
+            await filter.RunFilter("careerjet", executionStartTimestamp)
+                .catch((error) => {
+                throw new Error("Error at main → filter.RunFilter(): " + error);
+            });
+        }
         //Print result
         scraper.printDatabaseResult();
     }
 
+
     // Clean up:
     browser.close();
+
+    console.log("Start time: " + executionStartTimestamp);
+    console.log("End time: " + ORM.CreateTimestampNow());
 }
 
 async function run(scraper, browser, page) {
@@ -47,6 +79,8 @@ async function run(scraper, browser, page) {
 
 main().then((result) => {
     console.log("Successful termination: " + result);
+
+
 }, (error) => {
     console.log("Failed termination: " + error);
 });
