@@ -3,6 +3,10 @@ const ORM = require('../data/general-orm-1.1.0');
 /**
  * @class
  * Simple filter, encapsulating the methods used for iterations through selected Annonces.
+ *
+ * @remark
+ * Possible optimization, could be with an implementation of a independent module,
+ * which visits each page in database and marks those it could not visit as obsolete.
  */
 class AnnonceFilter {
 
