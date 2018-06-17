@@ -18,7 +18,8 @@ const CHECKSUM_CACHE = {};
 
 /**
  * @class
- * Class implementing ORM-techniques to paradigm match OO-models and database schema.
+ * Class implementing ORM-techniques to paradigm match OO-models and the database schema,
+ * Implements data-layer with prepared statements and Promises to make DB-calls asynchronously.
  *
  * @since       1.0.0
  * @access      public
@@ -42,9 +43,10 @@ class ORM {
                 'region_id INTEGER, ' +
                 'LAST_VISITED_TIMESTAMP DATETIME,' +
                 'CLOSED_AT_TIMESTAMP DATETIME,' +
-                'CHECKSUM TEXT, ' +
+                'CHECKSUM VARCHAR(255), ' +
                 'URL TEXT, ' +
                 'JOBSITE TEXT, ' +
+                'INDEX IDX_CHECKSUM (CHECKSUM), ' +
                 'FOREIGN KEY(region_id) REFERENCES region(region_id))';
 
             CONNECTION.query(query, function (error, result) {

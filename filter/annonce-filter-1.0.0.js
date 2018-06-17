@@ -1,6 +1,7 @@
 const ORM = require('../data/general-orm-1.1.0');
 
 /**
+ * @class
  * Simple filter, encapsulating the methods used for iterations through selected Annonces.
  */
 class AnnonceFilter {

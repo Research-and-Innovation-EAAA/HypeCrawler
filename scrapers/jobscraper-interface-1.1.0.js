@@ -449,21 +449,23 @@ class JocscraperTemplate {
                                 throw new Error("Already in database!" + error);
                             });
                     } else {
-                        this.existingTotalCounter++;
-                        ORM.UpdateAnnonce(ORM.CreateTimestampNow(), sha1Checksum) // Måske resolve her
+                        return ORM.UpdateAnnonce(ORM.CreateTimestampNow(), sha1Checksum)
                             .catch((error) => {
                                 throw new Error("Something went wrong when updating Annonce!" + error);
                             });
-                        resolve(result);
+
                     }
                 })
-                .then((newAnnonceModel) => {
-                    if (newAnnonceModel)
-                        return ORM.InsertAnnonce(newAnnonceModel)
+                .then((createResult) => {
+                    if (createResult instanceof annonceModel)
+                        return ORM.InsertAnnonce(createResult)
                             .catch((error) => {
                                 throw new Error("annonceModel failed" + error);
                             });
-
+                    else {
+                        this.existingTotalCounter++;
+                        resolve(createResult);
+                    }
                 })
                 .then((result) => {
                     this.successTotalCounter++;
@@ -517,7 +519,6 @@ class JocscraperTemplate {
         try {
             await ORM.CreateRegionTable();
             await ORM.CreateAnnonceTable();
-
             // Insert regions:
             for (let [key, value] of this.REGION_NAMES) {
                 await ORM.InsertRegion(new regionModel(key));

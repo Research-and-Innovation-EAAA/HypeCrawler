@@ -2,14 +2,14 @@ let puppeteer = require('puppeteer');
 const ORM = require('./data/general-orm-1.1.0');
 let jobindexClass = require('./scrapers/jobindex-scraper-1.0.0');
 let careerjetClass = require('./scrapers/careerjet-scraper-1.0.0');
-let filter = require('./filter/annonce-filter-0.0.1');
+let filter = require('./filter/annonce-filter-1.0.0');
 
 async function main() {
 
     let executionStartTimestamp = ORM.CreateTimestampNow();
 
     const browser = await puppeteer.launch({
-        headless: true
+        headless: false
     });
     const page = await browser.newPage();
 
@@ -17,7 +17,7 @@ async function main() {
         'Accept-Language': 'da-DK,da;q=0.9,en-US;q=0.8,en;q=0.7'
     });
 
-    if (process.env.SCRAPER === "all" || process.env.SCRAPER === "jobindex") {
+    if (process.env.SCRAPER === "" || process.env.SCRAPER === "jobindex") {
         let scraper = new jobindexClass();
         await run(scraper, browser, page)
             .catch((error) => {
@@ -25,7 +25,7 @@ async function main() {
            });
 
         // Search for obsolete annonces
-        if(process.env.RUN_REFRESH === "true") {
+        if(process.env.SEARCH_FOR_OBSOLETE === "true") {
            await filter.RunFilter("jobindex", executionStartTimestamp)
                .catch((error) => {
                    throw new Error("Error at main → filter.RunFilter(): " + error);
@@ -35,7 +35,7 @@ async function main() {
         scraper.printDatabaseResult();
     }
 
-    if (process.env.SCRAPER === "all" || process.env.SCRAPER === "careerjet") {
+    if (process.env.SCRAPER === "" || process.env.SCRAPER === "careerjet") {
 
         let scraper = new careerjetClass();
         await run(scraper, browser, page)
@@ -43,9 +43,8 @@ async function main() {
             throw new Error(error);
         });
 
-
         // Search for obsolete annonces
-        if(process.env.RUN_REFRESH === "true") {
+        if(process.env.SEARCH_FOR_OBSOLETE === "true") {
             await filter.RunFilter("careerjet", executionStartTimestamp)
                 .catch((error) => {
                 throw new Error("Error at main → filter.RunFilter(): " + error);
@@ -61,12 +60,13 @@ async function main() {
 
     console.log("Start time: " + executionStartTimestamp);
     console.log("End time: " + ORM.CreateTimestampNow());
+
 }
 
 async function run(scraper, browser, page) {
     await scraper.initializeDatabase()
         .catch((error) => {
-            console.log("Error at main → initializeDatabase(): " + error);
+            throw Error("Error at main → initializeDatabase(): " + error);
         });
 
     //<editor-fold desc="TestArea for interface">
@@ -79,7 +79,6 @@ async function run(scraper, browser, page) {
 
 main().then((result) => {
     console.log("Successful termination: " + result);
-
 
 }, (error) => {
     console.log("Failed termination: " + error);
